@@ -1,0 +1,297 @@
+﻿@page "/productos"
+@rendermode InteractiveServer
+
+<div class="container-fluid">
+    <div class="row min-vh-100">
+        <aside class="col-md-2 text-white p-3"
+               style="background-color: #14285f;">
+            <h5>Segunda</h5>
+            <div class="mt-4 p-2 rounded"
+                 style="background-color: #405886;">
+                ☷ Productos
+            </div>
+        </aside>
+
+        <main class="col-md-10 p-0">
+            <header class="bg-light border-bottom text-end p-3">
+                About
+            </header>
+
+            <section class="p-4">
+                <h1>Productos</h1>
+
+                @if (_mensajeError != "")
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @_mensajeError
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label for="inventario" class="form-label">Inventario</label>
+                    <input id="inventario"
+                           class="form-control"
+                           type="number"
+                           min="1"
+                           step="1"
+                           @bind="_numeroInventario" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <input id="nombre"
+                           class="form-control"
+                           type="text"
+                           @bind="_nombre" />
+                </div>
+
+                <div class="mb-3">
+                    <span class="me-2">Departamento</span>
+
+                    <InputRadioGroup @bind-Value="_departamento" Name="departamento">
+                        <label class="me-2">
+                            <InputRadio Value='@("Frutas")' />
+                            Frutas
+                        </label>
+
+                        <label class="me-2">
+                            <InputRadio Value='@("Verduras")' />
+                            Verduras
+                        </label>
+
+                        <label>
+                            <InputRadio Value='@("Lácteos")' />
+                            Lácteos
+                        </label>
+                    </InputRadioGroup>
+                </div>
+
+                @if (_indiceEdicion == -1)
+                {
+                    <button type="button"
+                            class="btn btn-primary me-2"
+                            @onclick="Guardar">
+                        Guardar
+                    </button>
+                }
+                else
+                {
+                    <button type="button"
+                            class="btn btn-primary me-2"
+                            @onclick="Guardar">
+                        Actualizar
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-danger me-2"
+                            @onclick="CancelarEdicion">
+                        Cancelar
+                    </button>
+                }
+
+                @if (_mostrarExistencias)
+                {
+                    <button type="button"
+                            class="btn btn-secondary d-block mt-2"
+                            @onclick="MostrarListado">
+                        Listado
+                    </button>
+                }
+                else
+                {
+                    <button type="button"
+                            class="btn btn-secondary d-block mt-2"
+                            @onclick="MostrarExistencias">
+                        Existencias
+                    </button>
+                }
+
+                @if (_mostrarExistencias)
+                {
+                    <h6 class="text-muted mt-4">Existencias por departamento</h6>
+
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Frutas</th>
+                                <th>Verduras</th>
+                                <th>Lácteos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>@ContarExistencias("Frutas")</td>
+                                <td>@ContarExistencias("Verduras")</td>
+                                <td>@ContarExistencias("Lácteos")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <h6 class="text-muted mt-4">Listado de productos</h6>
+
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Inventario</th>
+                                <th>Nombre</th>
+                                <th>Departamento</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (_inventarios.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="4">No hay productos registrados.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @for (int i = 0; i < _inventarios.Count; i++)
+                                {
+                                    int indice = i;
+
+                                    <tr>
+                                        <td>@_inventarios[indice]</td>
+                                        <td>@_nombres[indice]</td>
+                                        <td>@_departamentos[indice]</td>
+                                        <td>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger me-1"
+                                                    @onclick="() => Eliminar(indice)">
+                                                Eliminar
+                                            </button>
+
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    @onclick="() => Editar(indice)">
+                                                Editar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                }
+            </section>
+        </main>
+    </div>
+</div>
+
+@code {
+    private List<int> _inventarios = new List<int>();
+    private List<string> _nombres = new List<string>();
+    private List<string> _departamentos = new List<string>();
+
+    private string _numeroInventario = "0";
+    private string _nombre = "";
+    private string _departamento = "";
+    private string _mensajeError = "";
+
+    private int _indiceEdicion = -1;
+    private bool _mostrarExistencias = false;
+
+    private void Guardar()
+    {
+        _mensajeError = "";
+
+        if (!int.TryParse(_numeroInventario, out int inventario)
+            || inventario <= 0)
+        {
+            _mensajeError = "El inventario debe ser un entero positivo.";
+            return;
+        }
+
+        for (int i = 0; i < _inventarios.Count; i++)
+        {
+            if (_inventarios[i] == inventario && i != _indiceEdicion)
+            {
+                _mensajeError =
+                    "El número de inventario ya está registrado. Debe ser único.";
+                return;
+            }
+        }
+
+        if (_indiceEdicion == -1)
+        {
+            _inventarios.Add(inventario);
+            _nombres.Add(_nombre);
+            _departamentos.Add(_departamento);
+        }
+        else
+        {
+            _inventarios[_indiceEdicion] = inventario;
+            _nombres[_indiceEdicion] = _nombre;
+            _departamentos[_indiceEdicion] = _departamento;
+        }
+
+        LimpiarFormulario();
+    }
+
+    private void Editar(int indice)
+    {
+        _indiceEdicion = indice;
+        _numeroInventario = _inventarios[indice].ToString();
+        _nombre = _nombres[indice];
+        _departamento = _departamentos[indice];
+        _mensajeError = "";
+    }
+
+    private void Eliminar(int indice)
+    {
+        _inventarios.RemoveAt(indice);
+        _nombres.RemoveAt(indice);
+        _departamentos.RemoveAt(indice);
+
+        if (_indiceEdicion == indice)
+        {
+            LimpiarFormulario();
+        }
+        else if (indice < _indiceEdicion)
+        {
+            _indiceEdicion--;
+        }
+    }
+
+    private void CancelarEdicion()
+    {
+        LimpiarFormulario();
+    }
+
+    private void MostrarExistencias()
+    {
+        _mostrarExistencias = true;
+    }
+
+    private void MostrarListado()
+    {
+        _mostrarExistencias = false;
+    }
+
+    private int ContarExistencias(string departamento)
+    {
+        int total = 0;
+
+        for (int i = 0; i < _departamentos.Count; i++)
+        {
+            if (_departamentos[i] == departamento)
+            {
+                total++;
+            }
+        }
+
+        return total;
+    }
+
+    private void LimpiarFormulario()
+    {
+        _numeroInventario = "0";
+        _nombre = "";
+        _departamento = "";
+        _mensajeError = "";
+        _indiceEdicion = -1;
+    }
+}
